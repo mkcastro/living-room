@@ -1,16 +1,19 @@
 #include <Servo.h>
+#include <ezButton.h>
 
 // pins
 const int buzzerPin = 9;
 const int emergencyButtonPin = 8;
-const int servoPin = 2;
+const int servoPin = 3;
+const int lightSwitchPin = 4;
 
 // variables
 int onAngle;
 int offAngle;
 Servo servo; // create servo object to control a servo
+ezButton lightButton(lightSwitchPin);
 bool lightState;
-bool previousLightState;
+bool previousLightState = LOW;
 
 // calibration
 const int offsetAngle = 25;
@@ -21,28 +24,49 @@ void setup()
     onAngle = parkAngle + offsetAngle;
     offAngle = parkAngle - offsetAngle;
 
+    lightButton.setDebounceTime(50); // set debounce time to 50 milliseconds
+
     servo.attach(servoPin);
     servo.write(parkAngle);
 }
 
 void loop()
 {
-    if (lightsToggled())
+    lightButton.loop(); // MUST call the loop() function first
+
+    if (lightButton.isPressed())
     {
-        toggleLights();
+        lightState = !lightState;
     }
 
-    if (emergency())
+    if (!goalReached())
     {
-        performEmergencyMeasures();
+        handle();
     }
 
-    delay(300);
+    previousLightState = lightState;
+}
+
+void handle() {
+    if (lightState)
+    {
+        turnOffLights();
+    }
+    else {
+        turnOnLights();
+    }
+
+    delay(250);
+    servo.write(parkAngle);
+}
+
+bool goalReached() {
+    return previousLightState == lightState;
 }
 
 bool lightsToggled()
 {
-    return lightState != previousLightState;
+    return digitalRead(lightSwitchPin) != previousLightState;
 }
 
 void toggleLights()
@@ -59,7 +83,6 @@ void toggleLights()
     }
 
     servo.write(parkAngle);
-    previousLightState = lightState;
 }
 
 bool emergency()
